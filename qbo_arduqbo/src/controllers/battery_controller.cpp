@@ -23,16 +23,13 @@
  */
 
 #include <controllers/battery_controller.h>
-#include "ros/ros.h"
-#include <ros/console.h>
-#include "qbo_arduqbo/BatteryLevel.h"
 
 CBatteryController::CBatteryController(std::string name, CQboduinoDriver *device_p, ros::NodeHandle& nh) : CController(name,device_p,nh)
 {
     level_=0;
     stat_=0;
     std::string topic;
-    nh.param("controllers/"+name+"/topic", topic, std::string("battery_state"));
+    nh.param("controllers/"+name+"/topic", topic, topic);// std::string("battery_state"));
     nh.param("controllers/"+name+"/rate", rate_, 15.0);
     battery_pub_ = nh.advertise<qbo_arduqbo::BatteryLevel>(topic, 1);
     timer_=nh.createTimer(ros::Duration(1/rate_),&CBatteryController::timerCallback,this);
