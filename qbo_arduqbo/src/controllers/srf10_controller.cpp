@@ -23,59 +23,45 @@
  */
 
 #include <controllers/srf10_controller.h>
-#include "ros/ros.h"
-#include <ros/console.h>
-#include <map>
-#include <vector>
-#include <sensor_msgs/PointCloud.h>
-//#include <sensor_msgs/PointCloud2.h>
-//#include <pcl/io/pcd_io.h>
-//#include <pcl/point_types.h>
-//#include <pcl/ros/conversions.h>
-#include <myXmlRpc.h>
-#include <pthread.h>
+
+
 
 CDistanceSensor::CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id, float min_alert_distance, float max_alert_distance) :
     name_(name), address_(address), nh_(nh), type_(type), min_alert_distance_(min_alert_distance), max_alert_distance_(max_alert_distance), alert_(false)
 {
     cloud_.points.resize(1);
-    //cloud_.set_points_size(1);
     cloud_.channels.resize(0);
-    //cloud_.set_channels_size(0);
-
-
 
     cloud_.header.frame_id=frame_id;
     cloud_.points[0].x=0;
     cloud_.points[0].y=0;
     cloud_.points[0].z=0;
-    //sensor_pub_ = nh.advertise<pcl::PointXYZ>(topic, 1);
-    //sensor_pub_ = nh.advertise<sensor_msgs::PointCloud2>(topic, 1);
+
     sensor_pub_ = nh.advertise<sensor_msgs::PointCloud>(topic, 1);
     base_stop_service_client_ = nh.serviceClient<qbo_arduqbo::BaseStop>("stop_base");
 }
 
-void CDistanceSensor::publish(unsigned int readedValue, ros::Time time)
+void CDistanceSensor::publish(unsigned int readValue, ros::Time time)
 {
     float distance=0;
     if(type_.compare("srf10")==0)
     {
-        distance=((float)readedValue)/100;
+        distance=((float)readValue)/100;
     }
     else if(type_.compare("gp2d120")==0)
     {
-        distance=(2914 / ((float)readedValue + 5)) - 1;
+        distance=(2914 / ((float)readValue + 5)) - 1;
     }
     else if(type_.compare("gp2d12")==0)
     {
-        if (readedValue<3)
+        if (readValue<3)
             distance=-1;
         else
-            distance=(6787.0 /((float)readedValue - 3.0)) - 4.0;
+            distance=(6787.0 /((float)readValue - 3.0)) - 4.0;
     }
     else if(type_.compare("GP2Y0A21YK")==0)
     {
-       distance = 12343.85 * pow((float)readedValue,-1.15);
+       distance = (12343.85 * pow((float)readValue,-1.15))/100.0;
     }
     bool send_stop;
     nh_.param("autostop", send_stop, false);

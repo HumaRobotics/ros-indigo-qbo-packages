@@ -44,7 +44,7 @@
 #include <controllers/srf10_controller.h>
 #include <controllers/lcd_controller.h>
 #include <controllers/imu_controller.h>
-#include <controllers/infra_red_recievers_controller.h>
+#include <controllers/infra_red_receivers_controller.h>
 
 #include <unistd.h>
 #include <stdio.h>

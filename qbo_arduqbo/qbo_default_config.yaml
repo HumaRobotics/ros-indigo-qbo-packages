@@ -6,48 +6,48 @@ timeout2: 0.35
 rate: 6.0
 autostop: false
 controllers: {
-    "j_con": {
+    "joints": {
         type: joint_controller,
         joints: ["head_pan_joint","head_tilt_joint"],
         rate: 6.0,
         topic: /cmd_joints
     },
-    "b_con": {
+    "base": {
         type: base_controller,
         rate: 15.0,
         topic: /cmd_vel,
         odom_topic: /odom,
         tf_odom_broadcast: true
     },
-    "m_con": {
+    "mouth": {
         type: mouth_controller,
         topic: /cmd_mouth
     },
-    "n_con": {
+    "nose": {
         type: nose_controller,
         topic: /cmd_nose
     },
-    "lcd_con": {
+    "lcd": {
         type: lcd_controller,
         topic: /cmd_lcd
     },
-    "bat_con": {
+    "battery": {
         type: battery_controller,
         topic: /battery_state,
         rate: 0.5
     },
-    "mic_con": {
+    "micros": {
         type: mics_controller,
         rate: 5.0,
         topic: /cmd_mics,
         mics_topic: /mics_state
     },
-    "imu_con": {
+    "imu": {
         type: imu_controller,
         rate: 15.0,
         topic: /imu_state
     },
-    "sens_con": {
+    "distance_sensors": {
         type: sensors_controller,
         rate: 5.0,
         topic: /distance_sensors_state,
@@ -57,13 +57,13 @@ controllers: {
             front_right_srf10: { type: srf10, address: 226, frame_id: front_right_addon, min_alert_distance: 0.1 }
           },
           floor: {
-            floor_sensor: {type: GP2Y0A21YK, address: 8, frame_id: front_addon, max_alert_distance: 28.0 },
+            floor_sensor: {type: GP2Y0A21YK, address: 8, frame_id: front_addon, max_alert_distance: 0.28 },
           }
         }
     }
 }
 
-uncontrolledservos: {
+standardservos: {
     left_eyelid_joint: {id: 3, invert: true, max_angle_degrees: 180.0, min_angle_degrees: -180.0, range: 360.0, neutral: 1500 },
     right_eyelid_joint: {id: 4, max_angle_degrees: 180.0, min_angle_degrees: -180.0, range: 360.0, neutral: 1500},
 }
