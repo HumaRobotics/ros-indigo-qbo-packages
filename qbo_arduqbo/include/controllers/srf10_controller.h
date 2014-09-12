@@ -75,6 +75,7 @@ class CSrf10Controller : public CController
         std::map<uint8_t,uint8_t> srf10SensorsUpdateGroup_;
         std::map<uint8_t,CDistanceSensor *> adcSensors_;
         std::vector<uint8_t> adcSensorsAddresses_;
+	void createDistanceSensor(std::string paramName,std::string sensorName,std::string topic, ros::NodeHandle& nh);
 };
 
 #endif

@@ -161,6 +161,45 @@ std::string CDistanceSensor::getName()
     return name_;
 }
 
+void CSrf10Controller::createDistanceSensor(std::string paramName,std::string sensorName,std::string topic, ros::NodeHandle& nh){
+ if(!nh.hasParam(paramName+"/address"))
+        {
+            ROS_WARN_STREAM("You need to set the address atribute for the sensor " << sensorName);
+            return;
+        }
+        if(!nh.hasParam(paramName+"/type"))
+        {
+            ROS_WARN_STREAM("You need to set the type of the sensor " << sensorName);
+            return;
+        }
+
+	int address;
+        std::string type;
+        std::string frame_id;
+        std::string sensor_topic;
+        double max_alert_distance;
+        double min_alert_distance;
+
+nh.getParam(paramName+"/address", address);
+        nh.getParam(paramName+"/type", type);
+        nh.param(paramName+"/frame_id", frame_id, std::string(""));
+        nh.param(paramName+"/topic", sensor_topic, topic+"/"+sensorName);
+        nh.param(paramName+"/min_alert_distance", min_alert_distance, -1.0);
+        nh.param(paramName+"/max_alert_distance", max_alert_distance, -1.0);
+
+ if (type.compare("srf10")==0)
+        {
+            srf10Sensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
+            srf10SensorsUpdateGroup_[(uint8_t)address]=1;
+        }
+        else if (type.compare("gp2d12")==0 || type.compare("gp2d120")==0 || type.compare("GP2Y0A21YK")==0)
+        {
+            adcSensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
+            adcSensorsAddresses_.push_back((uint8_t)address);
+        }
+        ROS_INFO_STREAM("Sensor " << sensorName << " of type " << type << " initialized");
+}
+
 CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, ros::NodeHandle& nh) :
     CController(name,device_p,nh)
 {
@@ -178,40 +217,10 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
       for(it=value.begin();it!=value.end();it++)
       {
         ROS_ASSERT((*it).second.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-        if(!nh.hasParam("controllers/"+name+"/sensors/front/"+(*it).first+"/address"))
-        {
-            ROS_WARN_STREAM("You need to set the address atribute for the sensor " << (*it).first);
-            continue;
-        }
-        if(!nh.hasParam("controllers/"+name+"/sensors/front/"+(*it).first+"/type"))
-        {
-            ROS_WARN_STREAM("You need to set the type of the sensor " << (*it).first);
-            continue;
-        }
-        int address;
-        std::string type;
-        std::string frame_id;
-        std::string sensor_topic;
-        double max_alert_distance;
-        double min_alert_distance;
-        nh.getParam("controllers/"+name+"/sensors/front/"+(*it).first+"/address", address);
-        nh.getParam("controllers/"+name+"/sensors/front/"+(*it).first+"/type", type);
-        nh.param("controllers/"+name+"/sensors/front/"+(*it).first+"/frame_id", frame_id, std::string(""));
-        nh.param("controllers/"+name+"/sensors/front/"+(*it).first+"/topic", sensor_topic, topic+"/"+(*it).first);
-        nh.param("controllers/"+name+"/sensors/front/"+(*it).first+"/min_alert_distance", min_alert_distance, -1.0);
-        nh.param("controllers/"+name+"/sensors/front/"+(*it).first+"/max_alert_distance", max_alert_distance, -1.0);
-        //printf("%f\n",alert_distance);
-        if (type.compare("srf10")==0)
-        {
-            srf10Sensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
-            srf10SensorsUpdateGroup_[(uint8_t)address]=1;
-        }
-        else if (type.compare("gp2d12")==0 || type.compare("gp2d120")==0 || type.compare("GP2Y0A21YK")==0)
-        {
-            adcSensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
-            adcSensorsAddresses_.push_back((uint8_t)address);
-        }
-        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " initialized");
+        
+	createDistanceSensor("controllers/"+name+"/sensors/front/"+(*it).first,(*it).first, topic, nh);
+
+       
       }
     }
     if(nh.hasParam("controllers/"+name+"/sensors/back"))
@@ -225,40 +234,9 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
       for(it=value.begin();it!=value.end();it++)
       {
         ROS_ASSERT((*it).second.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-        if(!nh.hasParam("controllers/"+name+"/sensors/back/"+(*it).first+"/address"))
-        {
-            ROS_WARN_STREAM("You need to set the address atribute for the sensor " << (*it).first);
-            continue;
-        }
-        if(!nh.hasParam("controllers/"+name+"/sensors/back/"+(*it).first+"/type"))
-        {
-            ROS_WARN_STREAM("You need to set the type of the sensor " << (*it).first);
-            continue;
-        }
-        int address;
-        std::string type;
-        std::string frame_id;
-        std::string sensor_topic;
-        double min_alert_distance;
-        double max_alert_distance;
-        nh.getParam("controllers/"+name+"/sensors/back/"+(*it).first+"/address", address);
-        nh.getParam("controllers/"+name+"/sensors/back/"+(*it).first+"/type", type);
-        nh.param("controllers/"+name+"/sensors/back/"+(*it).first+"/frame_id", frame_id, std::string(""));
-        nh.param("controllers/"+name+"/sensors/back/"+(*it).first+"/topic", sensor_topic, topic+"/"+(*it).first);
-        nh.param("controllers/"+name+"/sensors/back/"+(*it).first+"/min_alert_distance", min_alert_distance, -1.0);
-        nh.param("controllers/"+name+"/sensors/back/"+(*it).first+"/max_alert_distance", max_alert_distance, -1.0);
-        //printf("%f\n",alert_distance);
-        if (type.compare("srf10")==0)
-        {
-            srf10Sensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
-            srf10SensorsUpdateGroup_[(uint8_t)address]=1;
-        }
-        else if (type.compare("gp2d12")==0 || type.compare("gp2d120")==0  || type.compare("GP2Y0A21YK")==0)
-        {
-            adcSensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
-            adcSensorsAddresses_.push_back((uint8_t)address);
-        }
-        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " inicializado");
+
+createDistanceSensor("controllers/"+name+"/sensors/back/"+(*it).first,(*it).first, topic, nh);
+
       }
     }
     if(nh.hasParam("controllers/"+name+"/sensors/floor"))
@@ -272,40 +250,8 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
       for(it=value.begin();it!=value.end();it++)
       {
         ROS_ASSERT((*it).second.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-        if(!nh.hasParam("controllers/"+name+"/sensors/floor/"+(*it).first+"/address"))
-        {
-            ROS_WARN_STREAM("You need to set the address atribute for the sensor " << (*it).first);
-            continue;
-        }
-        if(!nh.hasParam("controllers/"+name+"/sensors/floor/"+(*it).first+"/type"))
-        {
-            ROS_WARN_STREAM("You need to set the type of the sensor " << (*it).first);
-            continue;
-        }
-        int address;
-        std::string type;
-        std::string frame_id;
-        std::string sensor_topic;
-        double min_alert_distance;
-        double max_alert_distance;
-        nh.getParam("controllers/"+name+"/sensors/floor/"+(*it).first+"/address", address);
-        nh.getParam("controllers/"+name+"/sensors/floor/"+(*it).first+"/type", type);
-        nh.param("controllers/"+name+"/sensors/floor/"+(*it).first+"/frame_id", frame_id, std::string(""));
-        nh.param("controllers/"+name+"/sensors/floor/"+(*it).first+"/topic", sensor_topic, topic+"/"+(*it).first);
-        nh.param("controllers/"+name+"/sensors/floor/"+(*it).first+"/min_alert_distance", min_alert_distance, -1.0);
-        nh.param("controllers/"+name+"/sensors/floor/"+(*it).first+"/max_alert_distance", max_alert_distance, -1.0);
-        //printf("%f\n",alert_distance);
-        if (type.compare("srf10")==0)
-        {
-            ROS_WARN("srf10 sensors can only be declared at positions front or back");
-            continue;
-        }
-        else if (type.compare("gp2d12")==0 || type.compare("gp2d120")==0  || type.compare("GP2Y0A21YK")==0)
-        {
-            adcSensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
-            adcSensorsAddresses_.push_back((uint8_t)address);
-        }
-        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " initialized");
+createDistanceSensor("controllers/"+name+"/sensors/floor/"+(*it).first,(*it).first, topic, nh);
+
       }
     }
     //config the sensors in the QBoard1
@@ -341,7 +287,6 @@ void CSrf10Controller::timerCallback(const ros::TimerEvent& e)
         {
             if (updatedDistances.count((*it).first)>0)
             {
-                //float distance=((float)updatedDistances[(*it).first])/100;  //distancia en metros
                 ROS_DEBUG_STREAM("Obtained distance " << updatedDistances[(*it).first] << " for srf10 sensor " << (*it).second->getName() << " from the base control board");
                 if(updatedDistances[(*it).first]>0)
                     (*it).second->publish((float)updatedDistances[(*it).first],now);
