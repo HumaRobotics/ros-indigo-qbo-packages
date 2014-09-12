@@ -26,8 +26,8 @@
 
 
 
-CDistanceSensor::CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id, float min_alert_distance, float max_alert_distance) :
-    name_(name), address_(address), nh_(nh), type_(type), min_alert_distance_(min_alert_distance), max_alert_distance_(max_alert_distance), alert_(false)
+CDistanceSensor::CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id) :
+    name_(name), address_(address), nh_(nh), type_(type)
 {
     cloud_.points.resize(1);
     cloud_.channels.resize(0);
@@ -38,7 +38,6 @@ CDistanceSensor::CDistanceSensor(std::string name, uint8_t address, std::string 
     cloud_.points[0].z=0;
 
     sensor_pub_ = nh.advertise<sensor_msgs::PointCloud>(topic, 1);
-    base_stop_service_client_ = nh.serviceClient<qbo_arduqbo::BaseStop>("stop_base");
 }
 
 void CDistanceSensor::publish(unsigned int readValue, ros::Time time)
@@ -63,98 +62,12 @@ void CDistanceSensor::publish(unsigned int readValue, ros::Time time)
     {
        distance = (12343.85 * pow((float)readValue,-1.15))/100.0;
     }
-    bool send_stop;
-    nh_.param("autostop", send_stop, false);
-    //if(send_stop)
-        //ROS_INFO("Alarm set");
-  /*  if((min_alert_distance_!=-1 && distance<=min_alert_distance_) && (max_alert_distance_!=-1 && distance>=max_alert_distance_))
-    {
-        this->setAlarm(true, distance);
-    }
-    if(min_alert_distance_!=-1 && distance<=min_alert_distance_)
-    {
-        this->setAlarm(true, distance);
-    }
-    else if(max_alert_distance_!=-1 && distance>=max_alert_distance_)
-    {
-        this->setAlarm(true, distance);
-    }
-    else
-    {
-        this->setAlarm(false);
-    }*/
+    
     cloud_.points[0].x=distance;
     cloud_.header.stamp=time;
     sensor_pub_.publish(cloud_);
 }
 
-/*
-qbo_arduqbo::BaseStop CDistanceSensor::base_stop_service_msg_;
-void * CDistanceSensor::serviceCallFunction( void *args )
-{
-   if(!ros::service::call("/qbo_arduqbo/stop_base", base_stop_service_msg_))
-       ROS_ERROR("Unable to call service");
-   return NULL;
-}
-
-void CDistanceSensor::setAlarm(bool state, float distance)
-{
-    bool send_stop;
-    nh_.param("autostop", send_stop, false);
-    if(send_stop)
-    {
-        if(state && !alert_)
-        {
-            ROS_INFO("Sensor: %s Alarm SET. Detected: %f Min limit: %f Max limit: %f", name_.c_str(),distance,min_alert_distance_,max_alert_distance_);
-            alert_=true;
-            if(base_stop_service_client_.exists())
-            {
-              pthread_t thread;
-              base_stop_service_msg_.request.sender = name_;
-              base_stop_service_msg_.request.state = true;
-              pthread_create( &thread, NULL, &CDistanceSensor::serviceCallFunction, NULL);
-            }
-            else
-            {
-              ROS_INFO("No stop service available");
-            }
-        }
-        else if(!state && alert_)
-        {
-            ROS_INFO("Sensor: %s Alarm UNSET", name_.c_str());
-            alert_=false;
-            qbo_arduqbo::BaseStop srv;
-            if(base_stop_service_client_.exists())
-            {
-              pthread_t thread;
-              base_stop_service_msg_.request.sender = name_;
-              base_stop_service_msg_.request.state = false;
-              pthread_create( &thread, NULL, &CDistanceSensor::serviceCallFunction, NULL);
-            }
-            else
-            {
-              ROS_INFO("No stop service available");
-            }
-        }
-    }
-    else if(!send_stop && alert_)
-    {
-      ROS_INFO("Sensor: %s Alarm UNSET", name_.c_str());
-      alert_=false;
-      qbo_arduqbo::BaseStop srv;
-      if(base_stop_service_client_.exists())
-      {
-        pthread_t thread;
-        base_stop_service_msg_.request.sender = name_;
-        base_stop_service_msg_.request.state = false;
-        pthread_create( &thread, NULL, &CDistanceSensor::serviceCallFunction, NULL);
-      }
-      else
-      {
-        ROS_INFO("No stop service available");
-      }
-    }
-}*/
 
 std::string CDistanceSensor::getName()
 {
@@ -184,17 +97,16 @@ nh.getParam(paramName+"/address", address);
         nh.getParam(paramName+"/type", type);
         nh.param(paramName+"/frame_id", frame_id, std::string(""));
         nh.param(paramName+"/topic", sensor_topic, topic+"/"+sensorName);
-        nh.param(paramName+"/min_alert_distance", min_alert_distance, -1.0);
-        nh.param(paramName+"/max_alert_distance", max_alert_distance, -1.0);
+
 
  if (type.compare("srf10")==0)
         {
-            srf10Sensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
+            srf10Sensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id);
             srf10SensorsUpdateGroup_[(uint8_t)address]=1;
         }
         else if (type.compare("gp2d12")==0 || type.compare("gp2d120")==0 || type.compare("GP2Y0A21YK")==0)
         {
-            adcSensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
+            adcSensors_[(uint8_t)address]=new CDistanceSensor(sensorName, (uint8_t)address, sensor_topic, nh, type, frame_id);
             adcSensorsAddresses_.push_back((uint8_t)address);
         }
         ROS_INFO_STREAM("Sensor " << sensorName << " of type " << type << " initialized");

@@ -32,34 +32,29 @@
 #include <map>
 #include <vector>
 #include <set>
-#include <qbo_arduqbo/BaseStop.h>
 #include <sensor_msgs/PointCloud.h>
 
 #include <myXmlRpc.h>
-#include <pthread.h>
+
 
 
 class CDistanceSensor
 {
     public:
-        CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id="", float min_alert_distance=-1, float max_alert_distance=-1);
+        CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id="");
         void publish(unsigned int readedValue, ros::Time time);
-        //void setAlarm(bool state, float distance=-1);
+
         std::string getName();
-        static void* serviceCallFunction(void * args);
-        static qbo_arduqbo::BaseStop base_stop_service_msg_;
+
     protected:
         std::string name_;
         uint8_t address_;
 	std::string type_;
         ros::NodeHandle nh_;
 	ros::Publisher sensor_pub_;
-        ros::ServiceClient base_stop_service_client_;
 
         sensor_msgs::PointCloud cloud_;
-        double min_alert_distance_;
-        double max_alert_distance_;
-        bool alert_;
+
 };
 
 class CSrf10Controller : public CController
