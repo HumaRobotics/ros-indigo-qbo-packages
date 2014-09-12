@@ -44,7 +44,7 @@ class CDistanceSensor
     public:
         CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id="", float min_alert_distance=-1, float max_alert_distance=-1);
         void publish(unsigned int readedValue, ros::Time time);
-        void setAlarm(bool state, float distance=-1);
+        //void setAlarm(bool state, float distance=-1);
         std::string getName();
         static void* serviceCallFunction(void * args);
         static qbo_arduqbo::BaseStop base_stop_service_msg_;

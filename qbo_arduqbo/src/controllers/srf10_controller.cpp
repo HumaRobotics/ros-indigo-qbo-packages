@@ -67,7 +67,7 @@ void CDistanceSensor::publish(unsigned int readValue, ros::Time time)
     nh_.param("autostop", send_stop, false);
     //if(send_stop)
         //ROS_INFO("Alarm set");
-    if((min_alert_distance_!=-1 && distance<=min_alert_distance_) && (max_alert_distance_!=-1 && distance>=max_alert_distance_))
+  /*  if((min_alert_distance_!=-1 && distance<=min_alert_distance_) && (max_alert_distance_!=-1 && distance>=max_alert_distance_))
     {
         this->setAlarm(true, distance);
     }
@@ -82,14 +82,13 @@ void CDistanceSensor::publish(unsigned int readValue, ros::Time time)
     else
     {
         this->setAlarm(false);
-    }
+    }*/
     cloud_.points[0].x=distance;
     cloud_.header.stamp=time;
-    //pcl::toROSMsg(cloud_,msg_)
     sensor_pub_.publish(cloud_);
-    //sensor_pub_.publish(msg_);
 }
 
+/*
 qbo_arduqbo::BaseStop CDistanceSensor::base_stop_service_msg_;
 void * CDistanceSensor::serviceCallFunction( void *args )
 {
@@ -155,7 +154,7 @@ void CDistanceSensor::setAlarm(bool state, float distance)
         ROS_INFO("No stop service available");
       }
     }
-}
+}*/
 
 std::string CDistanceSensor::getName()
 {
@@ -212,7 +211,7 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
             adcSensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
             adcSensorsAddresses_.push_back((uint8_t)address);
         }
-        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " inicializado");
+        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " initialized");
       }
     }
     if(nh.hasParam("controllers/"+name+"/sensors/back"))
@@ -306,15 +305,15 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
             adcSensors_[(uint8_t)address]=new CDistanceSensor((*it).first, (uint8_t)address, sensor_topic, nh, type, frame_id, min_alert_distance, max_alert_distance);
             adcSensorsAddresses_.push_back((uint8_t)address);
         }
-        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " inicializado");
+        ROS_INFO_STREAM("Sensor " << (*it).first << " of type " << type << " initialized");
       }
     }
     //config the sensors in the QBoard1
     int code=device_p_->setAutoupdateSensors(srf10SensorsUpdateGroup_);
     if (code<0)
-        ROS_WARN("Unable to activate all srf10 sensors at the base control board");
+        ROS_WARN("Unable to activate all srf10 sensors on the base control board");
     else
-        ROS_INFO("All srf10 sensors updated correctly at the base control board");
+        ROS_INFO("All srf10 sensors of base control board correctly activated");
     timer_=nh.createTimer(ros::Duration(1/rate_),&CSrf10Controller::timerCallback,this);
 }
 
@@ -369,6 +368,7 @@ void CSrf10Controller::timerCallback(const ros::TimerEvent& e)
         }
     }
 }
+
 
 std::set<uint8_t> CSrf10Controller::getConfiguredSrfs(void)
 {
