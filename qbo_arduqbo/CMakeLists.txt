@@ -51,7 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
    LCD.msg
    Mouth.msg
    Nose.msg
-   BatteryLevel.msg
+   #BatteryLevel.msg
    motor_state.msg
    Irs.msg
    NoiseLevels.msg

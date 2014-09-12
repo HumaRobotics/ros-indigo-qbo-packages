@@ -29,9 +29,11 @@ CBatteryController::CBatteryController(std::string name, CQboduinoDriver *device
     level_=0;
     stat_=0;
     std::string topic;
-    nh.param("controllers/"+name+"/topic", topic, topic);// std::string("battery_state"));
-    nh.param("controllers/"+name+"/rate", rate_, 15.0);
-    battery_pub_ = nh.advertise<qbo_arduqbo::BatteryLevel>(topic, 1);
+    //nh.param("controllers/"+name+"/topic", topic, std::string("battery_state"));
+    //nh.param("controllers/"+name+"/rate", rate_, 15.0);
+    //battery_pub_ = nh.advertise<qbo_arduqbo::BatteryLevel>(topic, 1);
+    battery_pub_ = nh.advertise<std_msgs::Float32>("battery_state", 1);
+    status_pub_ = nh.advertise<std_msgs::Int8>("status", 1);
     timer_=nh.createTimer(ros::Duration(1/rate_),&CBatteryController::timerCallback,this);
 }
 
@@ -43,11 +45,18 @@ void CBatteryController::timerCallback(const ros::TimerEvent& e)
     else
     {
         ROS_DEBUG_STREAM("Obtained battery level " << level_ << " and stat " << stat_ << " from the base control board ");
-        qbo_arduqbo::BatteryLevel msg;
+       /* qbo_arduqbo::BatteryLevel msg;
         msg.level=level_/10.0;
         msg.stat=stat_;
-        msg.header.stamp = ros::Time::now();
+        msg.header.stamp = ros::Time::now();*/
+	std_msgs::Float32 msg;
+	msg.data = level_/10.0;
         //publish
         battery_pub_.publish(msg);
+
+	std_msgs::Int8 statusmsg;
+	statusmsg.data = stat_;
+        //publish
+        status_pub_.publish(statusmsg);
     }
 }
