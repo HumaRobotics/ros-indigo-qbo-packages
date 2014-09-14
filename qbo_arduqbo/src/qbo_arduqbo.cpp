@@ -44,7 +44,7 @@
 #include <controllers/srf10_controller.h>
 #include <controllers/lcd_controller.h>
 #include <controllers/imu_controller.h>
-#include <controllers/infra_red_receivers_controller.h>
+//#include <controllers/infra_red_receivers_controller.h>
 
 #include <unistd.h>
 #include <stdio.h>
@@ -230,11 +230,11 @@ CSerialController::CSerialController(std::string port1, int baud1, std::string p
             ROS_INFO("imu_controller started");
             controllersList_.push_back(new CImuController((*it).first, this, nh));
           }
-          else if(type.compare("irs_controller")==0)
+        /*  else if(type.compare("irs_controller")==0)
           {
             ROS_INFO("irs_controller started");
             controllersList_.push_back(new CInfraRedsController((*it).first, this, nh));
-          }
+          }*/
         }
       }
     }

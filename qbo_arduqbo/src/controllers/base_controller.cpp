@@ -23,35 +23,40 @@
  */
 
 #include <controllers/base_controller.h>
-/*#include <cmath>
-#include "ros/ros.h"
-#include <geometry_msgs/Twist.h>
-#include <tf/transform_broadcaster.h>
-#include <nav_msgs/Odometry.h>
-#include <ros/console.h>*/
+
 
 CBaseController::CBaseController(std::string name, CQboduinoDriver *device_p, ros::NodeHandle& nh) : CController(name,device_p,nh)
 {
     v_linear_ = 0.0;             // current setpoint velocity
     v_angular_ = 0.0;
-    v_dirty_=true;
+    v_dirty_=true;		//Should the movements orders be updated ?
     x_ = 0.0;                  // position in xy plane
     y_ = 0.0;
     th_ = 0.0;
+
+    base_stop_=false;
+
+//get parameters of initialize them
     std::string topic, odom_topic;
     nh.param("controllers/"+name+"/topic", topic, std::string("cmd_vel"));
     nh.param("controllers/"+name+"/odom_topic", odom_topic, std::string("odom"));
     nh.param("controllers/"+name+"/rate", rate_, 15.0);
     nh.param("controllers/"+name+"/tf_odom_broadcast", is_odom_broadcast_enabled_, true);
+
+//create twist subscriber to move the base
     twist_sub_ = nh.subscribe<geometry_msgs::Twist>(topic, 1, &CBaseController::twistCallback, this);
+//create odometry publisher
     odom_pub_ = nh.advertise<nav_msgs::Odometry>(odom_topic, 1);
+
+//advertize services
     stall_unlock_service_ = nh.advertiseService("unlock_motors_stall", &CBaseController::unlockStall,this);
     base_stop_service_ = nh.advertiseService("stop_base", &CBaseController::baseStopService,this);
-    then_=ros::Time::now();
+
     timer_=nh.createTimer(ros::Duration(1/rate_),&CBaseController::timerCallback,this);
+
+    then_=ros::Time::now();
     odom_.header.stamp = then_;
     odom_.header.frame_id = "odom";
-   // odom_.child_frame_id = "base_link"; CHANGED
     odom_.child_frame_id = "base_footprint";
 
     //set the position
@@ -92,11 +97,11 @@ void CBaseController::twistCallback(const geometry_msgs::Twist::ConstPtr& msg)
 
 void CBaseController::timerCallback(const ros::TimerEvent& e)
 {
-    //Calculo de tiempos
+    //Compute time
     ros::Time now=ros::Time::now();
     double elapsed=(now - then_).toSec();
     then_=now;
-    //Obtengo posicion
+    //Get position
     float x,y,th;
     int code=device_p_->getOdometry(x,y,th);
     if(code<0)
@@ -105,22 +110,25 @@ void CBaseController::timerCallback(const ros::TimerEvent& e)
         return;
     }
     else
-	ROS_DEBUG_STREAM("Odometry messege from base controler board: " << x << "," << y << "," << th);
+	ROS_DEBUG_STREAM("Odometry message from base controler board: " << x << "," << y << "," << th);
+
+//compute moved distance and speeds
     float d=sqrt(pow((x-x_),2) + pow((y-y_),2));
-    float dx = d / elapsed;
+    float dx = d / elapsed; 
     float angDiff=(th_-th)/elapsed;
     float dth = (angDiff >= 0) ? angDiff : -angDiff;
     
     geometry_msgs::Quaternion quaternion = tf::createQuaternionMsgFromYaw(th);
     
+//update stored positions
     x_=x;
     y_=y;
     th_=th;
     
+//create odometry message (pose : position, twist : velocity)
     nav_msgs::Odometry odom;
     odom_.header.stamp = then_;
-  
-    //set the position
+
     odom_.pose.pose.position.x = x_;
     odom_.pose.pose.position.y = y_;
     odom_.pose.pose.orientation = quaternion;
@@ -134,9 +142,8 @@ void CBaseController::timerCallback(const ros::TimerEvent& e)
     if(is_odom_broadcast_enabled_)
     {
         geometry_msgs::TransformStamped odom_trans;
-        //odom_trans.header.frame_id = "odom";
+
         odom_trans.header.frame_id = odom_.header.frame_id;
-        //odom_trans.child_frame_id = "base_footprint";
         odom_trans.child_frame_id = odom_.child_frame_id;
         odom_trans.header.stamp = then_;
         odom_trans.transform.translation.x = x_;
@@ -152,10 +159,12 @@ void CBaseController::timerCallback(const ros::TimerEvent& e)
     if (v_dirty_)
     {
         int code;
-        if((int)base_stoppers_.size()>0)
+        //if((int)base_stoppers_.size()>0)
+	if(base_stop_)
         {
-            code=device_p_->setSpeed(v_linear_ < 0 ? v_linear_ : 0, v_angular_);
-            //code=device_p_->setSpeed(0, v_angular_);
+            //code=device_p_->setSpeed(v_linear_ < 0 ? v_linear_ : 0, v_angular_);
+	    code = device_p_->setSpeed(0, 0);
+	    base_stop_ = false;
         }
         else
         { 
@@ -186,7 +195,7 @@ bool CBaseController::unlockStall(std_srvs::Empty::Request &req,
   }
 }
 
-bool CBaseController::baseStopService(qbo_arduqbo::BaseStop::Request  &req,
+/*bool CBaseController::baseStopService(qbo_arduqbo::BaseStop::Request  &req,
                       qbo_arduqbo::BaseStop::Response &res)
 {
     //return true;
@@ -207,4 +216,11 @@ bool CBaseController::baseStopService(qbo_arduqbo::BaseStop::Request  &req,
       }
     }
     return true;
+}*/
+bool CBaseController::baseStopService(std_srvs::Empty::Request  &req,
+                      std_srvs::Empty::Response &res)
+{
+    base_stop_ = true;
+    return true;
+    
 }
