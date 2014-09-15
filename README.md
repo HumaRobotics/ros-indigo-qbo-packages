@@ -44,3 +44,6 @@ Differences with previous qbo_arduqbo node:
 - qboduino driver has been cleaned and commented in english
 - floor_controller was empty an dunused, it has been deleted
 - Floor sensors gives a distance in meters and not centimeters
+- IMU has a parameter last_calibrated containing a time (or -1 if calibrating failed). The calibrated publisher has been removed.
+- IMU values computation has been modified (some errors in previous version ?)
+- NodeHandle nh has been added to controller_class

@@ -31,7 +31,7 @@
 class CController
 {
     public:
-        CController(std::string name, CQboduinoDriver *device_p, ros::NodeHandle& nh) : rate_(15), name_(name), device_p_(device_p)
+        CController(std::string name, CQboduinoDriver *device_p, ros::NodeHandle& nh) : rate_(15), name_(name), device_p_(device_p), nh(nh)
         {
         }
         std::string getName()
@@ -43,6 +43,7 @@ class CController
         ros::Timer timer_;
         std::string name_;
         CQboduinoDriver *device_p_;
+	ros::NodeHandle nh;
 };
 
 #endif
