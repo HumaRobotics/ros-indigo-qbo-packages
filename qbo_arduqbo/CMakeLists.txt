@@ -54,7 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
    #BatteryLevel.msg
    motor_state.msg
    #Irs.msg
-   NoiseLevels.msg
+   #NoiseLevels.msg
  )
 
 ## Generate services in the 'srv' folder
