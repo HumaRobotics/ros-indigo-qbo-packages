@@ -52,3 +52,4 @@ Differences with previous qbo_arduqbo node:
 - mics_controller use UInt16MultiArray instead of qbo_arduqbo/NoiseLevel.msg
 - mouth is now controlled by a ByteMultiArray of 4 bytes (one for each led line)
 command line example: rostopic pub -1 /cmd_mouth std_msgs/ByteMultiArray "{}" [0b10001,0b10001,0b01010,0b00100]
+- nose controller takes a UInt16 standard message. Values above 3 are unused (0 : off, 1 : red, 2:green, 3: yellow)

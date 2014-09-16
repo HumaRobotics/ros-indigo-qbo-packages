@@ -50,7 +50,7 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    #LCD.msg
    #Mouth.msg
-   Nose.msg
+   #Nose.msg
    #BatteryLevel.msg
    motor_state.msg
    #Irs.msg
