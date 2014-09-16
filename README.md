@@ -49,3 +49,6 @@ Differences with previous qbo_arduqbo node:
 - NodeHandle nh has been added to controller_class
 - LCD message replaced by string message
 - LCD can be commanded by '1hello' to write on 2nd line, '2hello' to write hello on 3rd line... Or by putting all 4 lines at once, separated by /. Example: hello/how are you//fine
+- mics_controller use UInt16MultiArray instead of qbo_arduqbo/NoiseLevel.msg
+- mouth is now controlled by a ByteMultiArray of 4 bytes (one for each led line)
+command line example: rostopic pub -1 /cmd_mouth std_msgs/ByteMultiArray "{}" [0b10001,0b10001,0b01010,0b00100]
