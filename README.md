@@ -47,3 +47,5 @@ Differences with previous qbo_arduqbo node:
 - IMU has a parameter last_calibrated containing a time (or -1 if calibrating failed). The calibrated publisher has been removed.
 - IMU values computation has been modified (some errors in previous version ?)
 - NodeHandle nh has been added to controller_class
+- LCD message replaced by string message
+- LCD can be commanded by '1hello' to write on 2nd line, '2hello' to write hello on 3rd line... Or by putting all 4 lines at once, separated by /. Example: hello/how are you//fine
