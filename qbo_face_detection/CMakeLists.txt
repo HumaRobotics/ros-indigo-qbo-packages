@@ -118,6 +118,7 @@ include_directories(
 
 
 add_executable(qbo_face_detection src/face_detector.cpp)
+add_dependencies(qbo_face_detection qbo_face_detection_generate_messages_cpp)
  target_link_libraries(qbo_face_detection
    ${catkin_LIBRARIES}
 #/usr/lib/libopencv_core.so

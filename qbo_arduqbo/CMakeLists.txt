@@ -60,7 +60,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
  add_service_files(
    FILES
-   #BaseStop.srv
+   BaseStop.srv
    TorqueEnable.srv
    Test.srv
  )
@@ -107,6 +107,7 @@ include_directories(
 
 add_library(cereal_port src/cereal_port/CerealPort.cpp)
 
+
 add_library(libdxl src/dynamixel_sdk/src/dxl_hal.c)
 add_library(dynamixel src/dynamixel_sdk/src/dynamixel.c)
 target_link_libraries(dynamixel libdxl)
@@ -115,11 +116,14 @@ target_link_libraries(dynamixel libdxl)
 add_library(arduqbo_instructions_lib src/driver/arduqbo_instructions.cpp)
 add_library(qboduino_driver_lib src/driver/qboduino_driver.cpp)
 target_link_libraries(qboduino_driver_lib arduqbo_instructions_lib)
+add_dependencies(qboduino_driver_lib qbo_arduqbo_generate_messages_cpp qbo_arduqbo_generate_services_cpp)
 
 add_library(servos_lib src/servos.cpp)
 target_link_libraries(servos_lib dynamixel libdxl)
 
 add_library(base_controller_lib src/controllers/base_controller.cpp)
+add_dependencies(base_controller_lib qbo_arduqbo_generate_messages_cpp qbo_arduqbo_generate_services_cpp)
+
 add_library(battery_controller_lib src/controllers/battery_controller.cpp)
 add_library(joint_controller_lib src/controllers/joint_controller.cpp)
 target_link_libraries(joint_controller_lib servos_lib)
@@ -129,17 +133,18 @@ add_library(mics_controller_lib src/controllers/mics_controller.cpp)
 add_library(mouth_controller_lib src/controllers/mouth_controller.cpp)
 add_library(nose_controller_lib src/controllers/nose_controller.cpp)
 add_library(srf10_controller_lib src/controllers/srf10_controller.cpp)
+add_dependencies(qboduino_driver_lib qbo_arduqbo_generate_messages_cpp qbo_arduqbo_generate_services_cpp)
+
 add_library(imu_controller_lib src/controllers/imu_controller.cpp)
-#add_library(irs_controller_lib src/controllers/infra_red_receivers_controller.cpp)
 
 ## Declare a cpp executable
-# add_executable(qbo_arduqbo_test_node src/qbo_arduqbo.cpp)
 
 add_executable(qbo_arduqbo src/qbo_arduqbo.cpp)
+add_dependencies(qbo_arduqbo qbo_arduqbo_generate_messages_cpp qbo_arduqbo_generate_services_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
- add_dependencies(qbo_arduqbo qbo_arduqbo_generate_messages_cpp)
+
 
 target_link_libraries(qbo_arduqbo cereal_port qboduino_driver_lib base_controller_lib battery_controller_lib joint_controller_lib lcd_controller_lib mics_controller_lib mouth_controller_lib nose_controller_lib  imu_controller_lib  pthread dynamixel libdxl srf10_controller_lib  ${catkin_LIBRARIES})
 
