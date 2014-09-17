@@ -42,7 +42,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/SetCameraInfo.h>
-//#include <qbo_face_msgs/FacePosAndDist.h>
+
 #include <qbo_face_detection/FacePosAndDist.h>
 #include <image_transport/image_transport.h>
 //#include <qbo_face_msgs/RecognizeFace.h>
@@ -146,8 +146,8 @@ private:
 
 
 	//Face detection methods
-	unsigned int detectFacesHaar(cv::Mat image, std::vector<cv::Rect> &faces);
-        unsigned int detectFacesAltHaar(cv::Mat image, std::vector<cv::Rect> &faces);
+	unsigned int detectFacesHaar(cv::Mat image, std::vector<cv::Rect> &faces, cv::CascadeClassifier classifier);
+
 	unsigned int detectFaceCamShift(cv::Mat img);
 	void classifierDetect(cv::Mat image, std::vector<cv::Rect>& detections, cv::CascadeClassifier classifier, int flag= CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size size=cv::Size());
 

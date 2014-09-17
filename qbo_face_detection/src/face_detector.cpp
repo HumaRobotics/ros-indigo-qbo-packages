@@ -69,7 +69,6 @@ void FaceDetector::setROSParams()
 {
 	//Setting default path of the Haar cascade classifier
 	string default_classifier_path = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt2.xml";
-	//string default_classifier_path = "/usr/share/OpenCV-2.3.1/haarcascades/haarcascade_frontalface_alt2.xml";
         string alternative_classifier_path = "none";
 
 	//Set default parameter for face classifier path
@@ -92,7 +91,7 @@ void FaceDetector::setROSParams()
 
 
 	//The threshold distance, in meters, from which the nose will change the color from green to blue.
-	private_nh_.param<double>("/qbo_face_tracking/distance_threshold", distance_threshold_, double(1.6));
+	//private_nh_.param<double>("/qbo_face_tracking/distance_threshold", distance_threshold_, double(1.6));
 
 	//If true, the messages will be sent to face recognizer to try to recognize the person, and the name will be seen in the viewer
 	private_nh_.param("/qbo_face_tracking/send_to_recognizer", send_to_face_recognizer_, false);
@@ -124,8 +123,7 @@ void FaceDetector::onInit()
 	 */
 	setROSParams();
 
-	
-
+	//load classifiers
 	if(!face_classifier_.load(face_classifier_path_))
 	{
 		ROS_ERROR("Error importing face Haar cascade classifier from the specified path: %s", face_classifier_path_.c_str());
@@ -159,8 +157,7 @@ void FaceDetector::onInit()
 	 * Publishers of the node
 	 */
 	//Publisher of the face tracking position and size
-	//face_position_and_size_pub_=private_nh_.advertise<qbo_face_msgs::FacePosAndDist>("/qbo_face_tracking/face_pos_and_dist", 1);
-	face_position_and_size_pub_=private_nh_.advertise<qbo_face_detection::FacePosAndDist>("/qbo_face_tracking/face_pos_and_dist", 1);
+	face_position_and_size_pub_=private_nh_.advertise<qbo_face_detection::FacePosAndDist>("/qbo_face_detection/face_pos_and_dist", 1);
 	//Publisher of the face image
 	face_pub_ = private_nh_.advertise<sensor_msgs::Image>("/qbo_face_tracking/face_image", 1);
 	//Publisher of the viewer, using image transport for compression
@@ -204,43 +201,41 @@ void FaceDetector::onInit()
 
 void FaceDetector::initializeKalmanFilter()
 {
-	kalman_filter_ = cv::KalmanFilter(4, 4);
+    kalman_filter_ = cv::KalmanFilter(4, 4);
+    kalman_filter_.transitionMatrix = (cv::Mat_<float>(4,4) << 1,0,1,0,
+								0,1,0,1,
+								0,0,1,0,
+								0,0,0,1);
 
-	kalman_filter_.transitionMatrix = (cv::Mat_<float>(4,4) <<  1,0,1,0,
-																0,1,0,1,
-																0,0,1,0,
-																0,0,0,1);
-
-	kalman_filter_.errorCovPost = cv::Mat::eye(4,4, CV_32FC1);
-	kalman_filter_.measurementNoiseCov = cv::Mat::eye(4,4,CV_32FC1) * 10;
-	kalman_filter_.measurementMatrix = (cv::Mat_<float>(4,4) << 1,0,0,0,
-																0,1,0,0,
-																0,0,1,0,
-																0,0,0,1);
+    kalman_filter_.errorCovPost = cv::Mat::eye(4,4, CV_32FC1);
+    kalman_filter_.measurementNoiseCov = cv::Mat::eye(4,4,CV_32FC1) * 10;
+    kalman_filter_.measurementMatrix = (cv::Mat_<float>(4,4) << 1,0,0,0,
+								0,1,0,0,
+								0,0,1,0,
+								0,0,0,1);
 }
 
 
 void FaceDetector::infoCallback(const sensor_msgs::CameraInfo::ConstPtr& info)
 {
-	if(p_.data==NULL)
-	{
-		cv::Mat p=cv::Mat(3,4,CV_64F);
-		for (int i=0;i<3;i++)
-		{
-			for (int j=0;j<4;j++)
-			{
-				p.at<double>(i,j)=info->P[4*i+j];
-			}
-		}
-		p(cv::Rect(0,0,3,3)).convertTo(p_,CV_32F);
+//p_ is the projection camera matrix
+    if(p_.data==NULL){
+        cv::Mat p=cv::Mat(3,4,CV_64F);
+        for (int i=0;i<3;i++){
+            for (int j=0;j<4;j++){
+                p.at<double>(i,j)=info->P[4*i+j];
+	    }
+        }
+        p(cv::Rect(0,0,3,3)).convertTo(p_,CV_32F);
 
 		/*
 		 * Subscribing to image node
 		 */
-		image_sub_=private_nh_.subscribe<sensor_msgs::Image>("/stereo/left/image_rect_color",1,&FaceDetector::imageCallback, this);
+        image_sub_=private_nh_.subscribe<sensor_msgs::Image>("/stereo/left/image_rect_color",1,&FaceDetector::imageCallback, this);
 
-		//TODO - Unsubscribe to the camera info topic
-	}
+		// Unsubscribe to the camera info topic
+        info_sub_.shutdown();
+    }
 }
 
 
@@ -298,7 +293,7 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     if(!face_detected_bool_) //If face was not detected - use Haar Cascade
     {
         vector<cv::Rect> faces_roi;
-    	detectFacesHaar(image_received, faces_roi);
+    	detectFacesHaar(image_received, faces_roi, face_classifier_);
 
     	if(faces_roi.size() > 0) //If Haar cascade classifier found a face
     	{
@@ -323,7 +318,8 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     if(!face_detected_bool_ && exist_alternative_) //If face was not detected - use Haar Cascade
     {
         vector<cv::Rect> faces_roi;
-        detectFacesAltHaar(image_received, faces_roi);
+        detectFacesHaar(image_received, faces_roi, alternative_face_classifier_);
+
 
         if(faces_roi.size() > 0) //If Haar cascade classifier found a face
         {
@@ -349,35 +345,34 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 	 * Kalman filter for Face pos estimation
 	 */
     kalman_filter_.predict();
-	if(face_detected_bool_) //IF face detected, use measured position to update kalman filter
-	{
-		if(undetected_count_>=undetected_threshold_)
-		{
-			cv::Mat new_state(4,1, CV_32FC1);
-			new_state.at<float>(0,0) = float(detected_face_roi_.x+detected_face_roi_.width/2.);
-			new_state.at<float>(1,0) = float(detected_face_roi_.y+detected_face_roi_.height/2.);
-			new_state.at<float>(2,0) = 0.;
-			new_state.at<float>(3,0) = 0.;
+    if(face_detected_bool_) //IF face detected, use measured position to update kalman filter
+    {
+        if(undetected_count_>=undetected_threshold_)
+        {
+            cv::Mat new_state(4,1, CV_32FC1);
+            new_state.at<float>(0,0) = float(detected_face_roi_.x+detected_face_roi_.width/2.);
+            new_state.at<float>(1,0) = float(detected_face_roi_.y+detected_face_roi_.height/2.);
+            new_state.at<float>(2,0) = 0.;
+            new_state.at<float>(3,0) = 0.;
 
-			new_state.copyTo(kalman_filter_.statePre);
-			new_state.copyTo(kalman_filter_.statePost);
+            new_state.copyTo(kalman_filter_.statePre);
+            new_state.copyTo(kalman_filter_.statePost);
 
-		}
+        }
+        else
+        {
+            float u_vel = float(detected_face_roi_.x+detected_face_roi_.width/2.) - kalman_filter_.statePost.at<float>(0,0);
+            float v_vel = float(detected_face_roi_.y+detected_face_roi_.height/2.) - kalman_filter_.statePost.at<float>(1,0);
 
-		else
-		{
-			float u_vel = float(detected_face_roi_.x+detected_face_roi_.width/2.)-kalman_filter_.statePost.at<float>(0,0);
-			float v_vel = float(detected_face_roi_.y+detected_face_roi_.height/2.)-kalman_filter_.statePost.at<float>(1,0);
+            cv::Mat measures(4,1, CV_32FC1);
+            measures.at<float>(0,0) = float(detected_face_roi_.x+detected_face_roi_.width/2.);
+            measures.at<float>(1,0) = float(detected_face_roi_.y+detected_face_roi_.height/2.);
+            measures.at<float>(2,0) = u_vel;
+            measures.at<float>(3,0) = v_vel;
 
-			cv::Mat measures(4,1, CV_32FC1);
-			measures.at<float>(0,0) = float(detected_face_roi_.x+detected_face_roi_.width/2.);
-			measures.at<float>(1,0) = float(detected_face_roi_.y+detected_face_roi_.height/2.);
-			measures.at<float>(2,0) = u_vel;
-			measures.at<float>(3,0) = v_vel;
-
-			kalman_filter_.correct(measures);
-		}
-	}
+            kalman_filter_.correct(measures);
+        }
+    }
     else //If face haven't been found, use only Kalman prediction
     {
     	kalman_filter_.statePre.copyTo(kalman_filter_.statePost);
@@ -389,20 +384,15 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 	 * Compute head distance
 	 */
     float head_distance;
-
-	if(!face_detected_bool_)
-    {
-	  if(head_distances_.size()!=0)
-			head_distance=head_distances_[0];//100;
-		else
-		  head_distance = 5;
-
-
-	}
-	else
-	{
-		head_distance=calcDistanceToHead(detected_face_, kalman_filter_);
-	}
+    if(!face_detected_bool_){
+        if(head_distances_.size()!=0)
+            head_distance=head_distances_[0];
+        else
+            head_distance = 5;
+    }
+    else{
+        head_distance=calcDistanceToHead(detected_face_, kalman_filter_);
+    }
 	
     if(head_distances_.size()==0)
     {
@@ -465,11 +455,10 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     {
     	//Publish head to topic
     	cv_ptr->image = detected_face_;
-		face_pub_.publish(cv_ptr->toImageMsg());
+        face_pub_.publish(cv_ptr->toImageMsg());
 
-
-		if(send_to_face_recognizer_)
-			sendToRecognizer();
+        if(send_to_face_recognizer_)
+            sendToRecognizer();
 
 
 		//Change nose color
@@ -772,27 +761,23 @@ unsigned int FaceDetector::detectFaceCamShift(cv::Mat img)
 
 	if(face_roi.x > 0 && face_roi.y > 0 && face_roi.width>20 && face_roi.height>20)
 	{
-		cv::Mat temp = backproject(face_roi);
-		for(int r = 0; r < temp.rows; r++)
-			for(int c = 0; c < temp.cols; c++)
-				mean_score+= temp.at<unsigned char>(r,c);
+	    cv::Mat temp = backproject(face_roi);
+            for(int r = 0; r < temp.rows; r++)
+                for(int c = 0; c < temp.cols; c++)
+                    mean_score+= temp.at<unsigned char>(r,c);
 
-		mean_score = mean_score/double(temp.rows*temp.cols);
+            mean_score = mean_score/double(temp.rows*temp.cols);
 	}
 
 
 	if(mean_score<mean_score_threshold) //Let's see if CAM Shift respects mean score threshold
 	{
-		face_detected_bool_ = false;
-		return 1;
+            return 1;
 	}
 
 	//If face position have moved considerably, ignore CAM shift
-	if(euclidDist(cv::Point2f(face_roi.x + face_roi.width/2.,face_roi.y+face_roi.height/2.),
-			cv::Point2f(detected_face_roi_.x+detected_face_roi_.width/2,detected_face_roi_.y+detected_face_roi_.height/2.)) > max_face_deslocation)
+	if(euclidDist(cv::Point2f(face_roi.x + face_roi.width/2., face_roi.y + face_roi.height/2.), cv::Point2f(detected_face_roi_.x+ detected_face_roi_.width/2, detected_face_roi_.y + detected_face_roi_.height/2.)) > max_face_deslocation)
 	{
-		face_detected_bool_ = false;
-
 		return 1;
 	}
 
@@ -818,7 +803,6 @@ unsigned int FaceDetector::detectFaceCamShift(cv::Mat img)
 	//CAM Shift have succesfully found face
 	detected_face_roi_ = face_roi;
 	detected_face_ = img(detected_face_roi_);
-	face_detected_bool_ = true;
 	return 0;
 }
 
@@ -842,16 +826,10 @@ void FaceDetector::classifierDetect(cv::Mat image, std::vector<cv::Rect>& detect
 
 }
 
-unsigned int FaceDetector::detectFacesHaar(cv::Mat image, std::vector<cv::Rect> &faces)
+unsigned int FaceDetector::detectFacesHaar(cv::Mat image, std::vector<cv::Rect> &faces, cv::CascadeClassifier classifier)
 {
-	classifierDetect(image,faces,face_classifier_);
+	classifierDetect(image,faces,classifier);
 	return faces.size();
-}
-
-unsigned int FaceDetector::detectFacesAltHaar(cv::Mat image, std::vector<cv::Rect> &faces)
-{
-        classifierDetect(image,faces,alternative_face_classifier_);
-        return faces.size();
 }
 
 float FaceDetector::calcDistanceToHead(cv::Mat& head, cv::KalmanFilter& kalman_filter)
