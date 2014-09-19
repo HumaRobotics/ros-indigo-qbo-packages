@@ -44,6 +44,7 @@
 #include <sensor_msgs/SetCameraInfo.h>
 
 #include <qbo_face_detection/FacePosAndDist.h>
+//#include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
 //#include <qbo_face_msgs/RecognizeFace.h>
 //#include <qbo_face_msgs/GetName.h>
@@ -143,6 +144,12 @@ private:
 	//Recognizer methods
 	void sendToRecognizer();
 	void sendToRecognizerGetName();
+
+	std::string detectFace(cv_bridge::CvImagePtr cv_ptr, cv::Mat& image_received);
+	void updateKalman();
+	float headDistance();
+	void drawForViewer(cv::Mat& image_received ,float u, float v);
+	void updateHaar();
 
 
 	//Face detection methods

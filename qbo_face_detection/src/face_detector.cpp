@@ -238,35 +238,10 @@ void FaceDetector::infoCallback(const sensor_msgs::CameraInfo::ConstPtr& info)
     }
 }
 
+std::string FaceDetector::detectFace(cv_bridge::CvImagePtr cv_ptr, cv::Mat& image_received){
 
-
-void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
-{
-
-	/*
-	 * Cretate a CvImage pointer to get cv::Mat representation of image
-	 */
-	cv_bridge::CvImagePtr cv_ptr;
-    try
-    {
-    	cv_ptr = cv_bridge::toCvCopy(image_ptr, sensor_msgs::image_encodings::RGB8);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-	    ROS_ERROR("cv_bridge exception: %s", e.what());
-	    return;
-    }
-
-    cv::Mat image_received = (cv_ptr->image).clone();
+    
     image_size_ = cv_ptr->image.size();
-
-    /*
-     * Creating structure to publish nose color
-     */
-   /* qbo_arduqbo::Nose nose;
-    nose.header.stamp = ros::Time::now();
-    nose.color=1;*/
-
 
     string detection_type = "";
 
@@ -313,8 +288,6 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 
     }
 
-
-
     if(!face_detected_bool_ && exist_alternative_) //If face was not detected - use Haar Cascade
     {
         vector<cv::Rect> faces_roi;
@@ -338,13 +311,12 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 
 
     }
+return detection_type;
 
+}
 
-
-	/*
-	 * Kalman filter for Face pos estimation
-	 */
-    kalman_filter_.predict();
+void FaceDetector::updateKalman(){
+ kalman_filter_.predict();
     if(face_detected_bool_) //IF face detected, use measured position to update kalman filter
     {
         if(undetected_count_>=undetected_threshold_)
@@ -380,10 +352,10 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     }
     
 
-	/*
-	 * Compute head distance
-	 */
-    float head_distance;
+}
+
+float FaceDetector::headDistance(){
+  float head_distance;
     if(!face_detected_bool_){
         if(head_distances_.size()!=0)
             head_distance=head_distances_[0];
@@ -413,71 +385,13 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     	head_distance+=head_distances_[i];
 
     head_distance=head_distance/head_distances_.size();
+return head_distance;
+}
 
+void FaceDetector::drawForViewer(cv::Mat& image_received ,float u, float v){
 
-
-    //Update undetected count
-	if(!face_detected_bool_)
-	{	undetected_count_++;
-
-	}
-	else
-	{
-		undetected_count_ = 0;
-	}
-
-	//Create Face Pos and Size message
-        qbo_face_detection::FacePosAndDist message;
-	message.image_width=cv_ptr->image.cols;
-	message.image_height=cv_ptr->image.rows;
-	message.type_of_tracking = detection_type;
-
-
-
-	if(undetected_count_<undetected_threshold_) //If head have been recently detected, use Kalman filter prediction
-	{
-		message.face_detected = true;
-		message.u = kalman_filter_.statePost.at<float>(0,0) - cv_ptr->image.cols/2.;
-		message.v = kalman_filter_.statePost.at<float>(1,0) - cv_ptr->image.rows/2.;
-		message.distance_to_head = float(head_distance);
-
-	}
-	else //If head has not been recently detected, face detection have failed
-	{
-		message.u = default_pos_.x;
-		message.v = default_pos_.y;
-
-		message.face_detected = false;
-
-	}
-
-    if(face_detected_bool_)
-    {
-    	//Publish head to topic
-    	cv_ptr->image = detected_face_;
-        face_pub_.publish(cv_ptr->toImageMsg());
-
-        if(send_to_face_recognizer_)
-            sendToRecognizer();
-
-
-		//Change nose color
-     /*   nose.color=4; //If face detected - Blue
-		if(head_distance<distance_threshold_)
-        {
-		 	nose.color=2; //If face is near - Green
-        }*/
-    }
-
-    //Publish nose color
-    //nose_color_pub_.publish(nose);
-
-    /*
-     * Draws for the Viewer
-     * Velocity vector, face rectangle and face center
-     */
-    int pred_x = int(message.u) + int(message.image_width)/2;
-    int pred_y = int(message.v) + int(message.image_height)/2;
+    int pred_x = int((u + image_received.cols)/2);
+    int pred_y = int((v + image_received.rows)/2);
 
     cv::Point pred_kal = cv::Point(pred_x, pred_y);
     cv::Point tip_u_vel = cv::Point(pred_kal.x + (kalman_filter_.statePost.at<float>(2,0))/1., pred_kal.y);
@@ -499,34 +413,10 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 		cv::putText(image_received, name_detected_, cv::Point(40,40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 3);
 
     
-    /*
-     * Publish Image viewer
-     */
-    cv_bridge::CvImagePtr cv_ptr2;
-    try
-    {
-      cv_ptr2 = cv_bridge::toCvCopy(image_ptr, sensor_msgs::image_encodings::RGB8);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-	    ROS_ERROR("cv_bridge exception: %s", e.what());
-	    return;
-    }
-    
-    cv_ptr2->image = image_received;  
-    viewer_image_pub_.publish(cv_ptr2->toImageMsg());
-    
+}
 
-    /*
-     * Publish face position and size
-     */
-    face_position_and_size_pub_.publish(message);
-
-
-    /*
-     * Update Haar cascade use frequency for Dynamic Haar Cascade
-     */
-    if(dynamic_check_haar_)
+void FaceDetector::updateHaar(){
+if(dynamic_check_haar_)
     {
 	if(undetected_count_ > 10)
 	{
@@ -554,26 +444,6 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     	track_object_= check_Haar_ ;
     }
 
-    /*
-     * ROS_INFO
-     */
-    if(face_detected_bool_)
-    {
-    	if(dynamic_check_haar_)
-    		ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Dynamic check Haar: %u, Det type: %s, Alt: %s",
-    				(int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
-    	else
-    		ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Check Haar: %u, Detection type: %s, Alt: %s",
-    				(int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
-    }
-    else
-    {
-    	if(dynamic_check_haar_)
-    		ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Dynamic Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
-    	else
-    		ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
-    }
-    
 	/*
 	 * Refresh face_detected bool to use Haar Cascade once in a while
 	 */
@@ -585,6 +455,151 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
 
     loop_counter_++;
     
+
+}
+
+void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
+{
+
+	/*
+	 * Cretate a CvImage pointer to get cv::Mat representation of image
+	 */
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+    	cv_ptr = cv_bridge::toCvCopy(image_ptr, sensor_msgs::image_encodings::RGB8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    /*
+     * Creating structure to publish nose color
+     */
+   /* qbo_arduqbo::Nose nose;
+    nose.header.stamp = ros::Time::now();
+    nose.color=1;*/
+    cv::Mat image_received = (cv_ptr->image).clone();
+    string detection_type = detectFace(cv_ptr, image_received);
+
+	/*
+	 * Kalman filter for Face pos estimation
+	 */
+
+    updateKalman();
+	/*
+	 * Compute head distance
+	 */
+    float head_distance = headDistance();
+
+    //Update undetected count
+    if(!face_detected_bool_)
+    {	
+        undetected_count_++;
+    }
+    else
+    {
+        undetected_count_ = 0;
+    }
+
+    //Create Face Pos and Size message
+    qbo_face_detection::FacePosAndDist message;
+    message.image_width=cv_ptr->image.cols;
+    message.image_height=cv_ptr->image.rows;
+    message.type_of_tracking = detection_type;
+
+
+
+    if(undetected_count_<undetected_threshold_) //If head have been recently detected, use Kalman filter prediction
+    {
+        message.face_detected = true;
+        message.u = kalman_filter_.statePost.at<float>(0,0) - cv_ptr->image.cols/2.;
+        message.v = kalman_filter_.statePost.at<float>(1,0) - cv_ptr->image.rows/2.;
+        message.distance_to_head = float(head_distance);
+    }
+    else //If head has not been recently detected, face detection have failed
+    {
+        message.u = default_pos_.x;
+        message.v = default_pos_.y;
+        message.face_detected = false;
+    }
+
+    if(face_detected_bool_)
+    {
+    	//Publish head to topic
+    	cv_ptr->image = detected_face_;
+        face_pub_.publish(cv_ptr->toImageMsg());
+
+        if(send_to_face_recognizer_)
+            sendToRecognizer();
+
+
+		//Change nose color
+     /*   nose.color=4; //If face detected - Blue
+		if(head_distance<distance_threshold_)
+        {
+		 	nose.color=2; //If face is near - Green
+        }*/
+    }
+
+    //Publish nose color
+    //nose_color_pub_.publish(nose);
+
+    /*
+     * Publish face position and size
+     */
+    face_position_and_size_pub_.publish(message);
+
+    /*
+     * Draws for the Viewer
+     * Velocity vector, face rectangle and face center
+     */
+    drawForViewer(image_received, message.u, message.v);
+   
+    /*
+     * Publish Image viewer
+     */
+    cv_bridge::CvImagePtr cv_ptr2;
+    try
+    {
+      cv_ptr2 = cv_bridge::toCvCopy(image_ptr, sensor_msgs::image_encodings::RGB8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+    
+    cv_ptr2->image = image_received;  
+    viewer_image_pub_.publish(cv_ptr2->toImageMsg());
+
+
+    /*
+     * Update Haar cascade use frequency for Dynamic Haar Cascade
+     */
+    updateHaar();
+    
+    /*
+     * ROS_INFO
+     */
+    if(face_detected_bool_)
+    {
+    	if(dynamic_check_haar_)
+            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Dynamic check Haar: %u, Det type: %s, Alt: %s", (int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
+    	else
+            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Check Haar: %u, Detection type: %s, Alt: %s", (int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
+    }
+    else
+    {
+    	if(dynamic_check_haar_)
+            ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Dynamic Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
+    	else
+            ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
+    }
+    
+
 }
 
 void FaceDetector::sendToRecognizer()

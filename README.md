@@ -17,7 +17,7 @@ Installation:
 - Install Ubuntu 14.04 (I made a bootable USB stick using http://unetbootin.sourceforge.net/ Don't forget to enable booting from USB in the boot options (for me, F2 when starting, enable USB, then F10 and boot from card reader))
 - Install ROS Indigo (http://wiki.ros.org/indigo/Installation/Ubuntu)
 - Install a few dependencies 
-sudo apt-get install libpam-systemd libsystemd-daemon0 libsystemd-login0 libudev1 systemd-services udev ros-indigo-uvc-camera ros-indigo-camera-calibration-parser ros-indigo-image-view
+sudo apt-get install libpam-systemd libsystemd-daemon0 libsystemd-login0 libudev1 systemd-services udev ros-indigo-uvc-camera ros-indigo-camera-calibration-parsers ros-indigo-image-view
 - add your user in dialout and video groups to be able to use USB and video ports. (My user name is qbobot, adapt to your setup)
 sudo usermod -a -G dialout qbobot
 sudo usermod -a -G video qbobot
