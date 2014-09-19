@@ -157,7 +157,8 @@ void FaceDetector::onInit()
 	 * Publishers of the node
 	 */
 	//Publisher of the face tracking position and size
-	face_position_and_size_pub_=private_nh_.advertise<qbo_face_detection::FacePosAndDist>("/qbo_face_detection/face_pos_and_dist", 1);
+	//face_position_and_size_pub_=private_nh_.advertise<qbo_face_detection::FacePosAndDist>("/qbo_face_detection/face_pos_and_dist", 1);
+	face_position_and_size_pub_=private_nh_.advertise<geometry_msgs::PointStamped>("/qbo_face_detection/face_pos_and_dist", 1);
 	//Publisher of the face image
 	face_pub_ = private_nh_.advertise<sensor_msgs::Image>("/qbo_face_tracking/face_image", 1);
 	//Publisher of the viewer, using image transport for compression
@@ -219,14 +220,25 @@ void FaceDetector::initializeKalmanFilter()
 void FaceDetector::infoCallback(const sensor_msgs::CameraInfo::ConstPtr& info)
 {
 //p_ is the projection camera matrix
+    bool allZeros = true;
     if(p_.data==NULL){
         cv::Mat p=cv::Mat(3,4,CV_64F);
         for (int i=0;i<3;i++){
             for (int j=0;j<4;j++){
                 p.at<double>(i,j)=info->P[4*i+j];
+		if(info->P[4*i+j] != 0)
+		    allZeros = false;
 	    }
         }
-        p(cv::Rect(0,0,3,3)).convertTo(p_,CV_32F);
+
+	//bad hack to avoid NaNs in head_distance...
+	if(allZeros){
+		p_= (cv::Mat_<float>(3,3) << 1,0,0,
+						0,1,0,
+						0,0,1);
+	}
+	else
+            p(cv::Rect(0,0,3,3)).convertTo(p_,CV_32F);
 
 		/*
 		 * Subscribing to image node
@@ -355,7 +367,7 @@ void FaceDetector::updateKalman(){
 }
 
 float FaceDetector::headDistance(){
-  float head_distance;
+  float head_distance = -1;
     if(!face_detected_bool_){
         if(head_distances_.size()!=0)
             head_distance=head_distances_[0];
@@ -363,7 +375,10 @@ float FaceDetector::headDistance(){
             head_distance = 5;
     }
     else{
+	ROS_INFO("distance to head before %f", head_distance);
+	//ROS_INFO(head_distance);
         head_distance=calcDistanceToHead(detected_face_, kalman_filter_);
+	ROS_INFO("distance to head after %f", head_distance);
     }
 	
     if(head_distances_.size()==0)
@@ -505,35 +520,52 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     }
 
     //Create Face Pos and Size message
-    qbo_face_detection::FacePosAndDist message;
+    /*qbo_face_detection::FacePosAndDist message;
     message.image_width=cv_ptr->image.cols;
     message.image_height=cv_ptr->image.rows;
-    message.type_of_tracking = detection_type;
+    message.type_of_tracking = detection_type;*/
 
-
+    geometry_msgs::PointStamped message;
+    message.header.stamp = ros::Time::now();
 
     if(undetected_count_<undetected_threshold_) //If head have been recently detected, use Kalman filter prediction
     {
-        message.face_detected = true;
+        /*message.face_detected = true;
         message.u = kalman_filter_.statePost.at<float>(0,0) - cv_ptr->image.cols/2.;
         message.v = kalman_filter_.statePost.at<float>(1,0) - cv_ptr->image.rows/2.;
-        message.distance_to_head = float(head_distance);
+        message.distance_to_head = float(head_distance);*/
+
+	//values between -1 and 1
+	message.point.x = kalman_filter_.statePost.at<float>(0,0)/cv_ptr->image.cols - 1/2.;
+	message.point.y = kalman_filter_.statePost.at<float>(1,0)/cv_ptr->image.rows - 1/2.;
+	message.point.z = float(head_distance);
     }
     else //If head has not been recently detected, face detection have failed
     {
-        message.u = default_pos_.x;
+        /*message.u = default_pos_.x;
         message.v = default_pos_.y;
-        message.face_detected = false;
+        message.face_detected = false;*/
+
+	message.point.x = 0.0;
+	message.point.y = 0.0;
+	message.point.z = -1.0;
     }
+    /*
+     * Publish face position and size
+     */
+    face_position_and_size_pub_.publish(message);
+
 
     if(face_detected_bool_)
     {
     	//Publish head to topic
-    	cv_ptr->image = detected_face_;
-        face_pub_.publish(cv_ptr->toImageMsg());
+    	
 
-        if(send_to_face_recognizer_)
+        if(send_to_face_recognizer_){
+	    cv_ptr->image = detected_face_;
+            face_pub_.publish(cv_ptr->toImageMsg());
             sendToRecognizer();
+	}
 
 
 		//Change nose color
@@ -547,16 +579,12 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     //Publish nose color
     //nose_color_pub_.publish(nose);
 
-    /*
-     * Publish face position and size
-     */
-    face_position_and_size_pub_.publish(message);
 
     /*
      * Draws for the Viewer
      * Velocity vector, face rectangle and face center
      */
-    drawForViewer(image_received, message.u, message.v);
+    drawForViewer(image_received, kalman_filter_.statePost.at<float>(0,0) - cv_ptr->image.cols/2., kalman_filter_.statePost.at<float>(1,0) - cv_ptr->image.rows/2.);
    
     /*
      * Publish Image viewer
@@ -584,12 +612,12 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
     /*
      * ROS_INFO
      */
-    if(face_detected_bool_)
+  /*  if(face_detected_bool_)
     {
     	if(dynamic_check_haar_)
-            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Dynamic check Haar: %u, Det type: %s, Alt: %s", (int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
+            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Dynamic check Haar: %u, Det type: %s, Alt: %s", (int)message.point.x, (int)message.point.y, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
     	else
-            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Check Haar: %u, Detection type: %s, Alt: %s", (int)message.u, (int)message.v, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
+            ROS_INFO("FACE DETECTED -> Head Pos :(%d, %d), Head Distance: %lg, Check Haar: %u, Detection type: %s, Alt: %s", (int)message.point.x, (int)message.point.y, head_distance, check_Haar_, detection_type.c_str(), (exist_alternative_)?"true":"false");
     }
     else
     {
@@ -597,7 +625,7 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
             ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Dynamic Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
     	else
             ROS_INFO("NO FACE DETECTED. Using Haar Cascade Classifier to find one. Check Haar: %u, Alt: %s", check_Haar_, (exist_alternative_)?"true":"false");
-    }
+    }*/
     
 
 }
@@ -849,6 +877,7 @@ unsigned int FaceDetector::detectFacesHaar(cv::Mat image, std::vector<cv::Rect> 
 
 float FaceDetector::calcDistanceToHead(cv::Mat& head, cv::KalmanFilter& kalman_filter)
 {
+
 	float u_left=kalman_filter.statePost.at<float>(0,0)-head.cols/2;
 	cv::Mat uv_left(3,1,CV_32F);
 	uv_left.at<float>(0,0)=u_left;
@@ -867,6 +896,7 @@ float FaceDetector::calcDistanceToHead(cv::Mat& head, cv::KalmanFilter& kalman_f
 
 	cart_left=cart_left/sqrt(cart_left.dot(cart_left));
 	cart_right=cart_right/sqrt(cart_right.dot(cart_right));
+
 
 	float theta=acos(cart_left.dot(cart_right));
 	float l=(HEAD_SIZE/2)/tan(theta/2);

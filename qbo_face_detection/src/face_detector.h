@@ -43,8 +43,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/SetCameraInfo.h>
 
-#include <qbo_face_detection/FacePosAndDist.h>
-//#include <geometry_msgs/PoseStamped.h>
+//#include <qbo_face_detection/FacePosAndDist.h>
+#include <geometry_msgs/PointStamped.h>
 #include <image_transport/image_transport.h>
 //#include <qbo_face_msgs/RecognizeFace.h>
 //#include <qbo_face_msgs/GetName.h>
