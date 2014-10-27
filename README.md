@@ -62,3 +62,9 @@ Differences with previous qbo_arduqbo node:
 - mouth is now controlled by a ByteMultiArray of 4 bytes (one for each led line)
 command line example: rostopic pub -1 /cmd_mouth std_msgs/ByteMultiArray "{}" [0b10001,0b10001,0b01010,0b00100]
 - nose controller takes a UInt16 standard message. Values above 3 are unused (0 : off, 1 : red, 2:green, 3: yellow)
+
+Difference between previous qbo_face_tracking and new qbo_face_detection node:
+- Nose does not light up. This node is completely independant from arduqbo
+- Use geometry_msgs/PoseStamped instead of FacePosAndDist message
+- in message, x and y are values in the camera image, between -1 and 1
+- A distance of -1 means no face has been detected. Distance measurement may be bad, because of poblems with the camera projection matrix
