@@ -536,8 +536,8 @@ void FaceDetector::imageCallback(const sensor_msgs::Image::ConstPtr& image_ptr)
         message.distance_to_head = float(head_distance);*/
 
 	//values between -1 and 1
-	message.point.x = kalman_filter_.statePost.at<float>(0,0)/cv_ptr->image.cols - 1/2.;
-	message.point.y = kalman_filter_.statePost.at<float>(1,0)/cv_ptr->image.rows - 1/2.;
+	message.point.x = 2.*kalman_filter_.statePost.at<float>(0,0)/cv_ptr->image.cols - 1.;
+	message.point.y = 2.*kalman_filter_.statePost.at<float>(1,0)/cv_ptr->image.rows - 1.;
 	message.point.z = float(head_distance);
     }
     else //If head has not been recently detected, face detection have failed

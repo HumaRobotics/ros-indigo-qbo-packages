@@ -53,10 +53,17 @@ void initValues()
     panRadPerTicks = range*M_PI/(ticks*180);
 
 //PID parameters as ROS params
-    ros::param::set("/qbo_head_tracker/pan/kp", 0.35);
+   /* ros::param::set("/qbo_head_tracker/pan/kp", 0.35);
     ros::param::set("/qbo_head_tracker/pan/kd", 0.08);
     ros::param::set("/qbo_head_tracker/pan/ki", 0.01);
     ros::param::set("/qbo_head_tracker/tilt/kp", 0.6);
+    ros::param::set("/qbo_head_tracker/tilt/kd", 0.07);
+    ros::param::set("/qbo_head_tracker/tilt/ki", 0.005);*/
+
+ros::param::set("/qbo_head_tracker/pan/kp", 0.1);
+    ros::param::set("/qbo_head_tracker/pan/kd", 0.08);
+    ros::param::set("/qbo_head_tracker/pan/ki", 0.01);
+    ros::param::set("/qbo_head_tracker/tilt/kp", 0.3);
     ros::param::set("/qbo_head_tracker/tilt/kd", 0.07);
     ros::param::set("/qbo_head_tracker/tilt/ki", 0.005);
 
@@ -83,11 +90,21 @@ void qboPanCallback(const qbo_arduqbo::motor_state::ConstPtr& msg)
     currentPan = (msg->position- zeroPan)*panRadPerTicks;
 }
 
+double computePID(double value, double& previousValue, double& integralTerm, ros::Time previousTime, double kp, double ki, double kd){
 
-float controlPID(float x, float ix, float dx, float Kp, float Ki, float Kd)
-{
-    //ROS_INFO("PID %f, %f, %f, %f, %f, %f",x,  ix, dx,  Kp,  Ki,  Kd );
-    return Kp*x+Ki*ix+Kd*dx;
+//update integral term
+integralTerm = 0.9*integralTerm + value;
+
+//Derivative term
+    ros::Time now = ros::Time::now();
+    double derivativeTerm = (value - previousValue)/((now - previousTime).sec+0.001*(now - previousTime).nsec);
+
+//update previous value
+previousValue = value;
+//don't update previous time as 1 time is use for pan and tilt
+
+//perform PID
+return kp*value+ki*integralTerm+kd*derivativeTerm;
 }
 
 //move the head to the absolute position (pan, tilt)
@@ -116,44 +133,26 @@ void moveHeadAbs(double pan, double tilt)
 void moveHeadRel(double pan, double tilt)
 {
     /****** PID calculation for tilt ***********/
-
-//Integral term
-    iTilt = 0.9*iTilt + (tilt);
-//Derivated term
-    ros::Time now = ros::Time::now();
-    double dTilt = (tilt - previousTilt)/((now - timePreviousTilt).sec+0.001*(now - timePreviousTilt).nsec);
-
-//Parameters
-    double kp;
+    double kp, kd, ki;
     ros::param::get("/qbo_head_tracker/tilt/kp", kp);
-    double kd;
     ros::param::get("/qbo_head_tracker/tilt/kd", kd);
-    double ki;
     ros::param::get("/qbo_head_tracker/tilt/ki", ki);
 
-    double  tiltPID = controlPID(tilt, iTilt, dTilt, kp, kd, ki);
+double  tiltPID = computePID(tilt, previousTilt, iTilt, timePreviousTilt, kp, ki, kd);
 
     /****** PID calculation for pan ***********/
 
-//Integral term
-    iPan = 0.9*iPan + (pan);
-//Derivated term
-    double dPan = (pan - previousPan)/((now - timePreviousTilt).sec+0.001*(now - timePreviousTilt).nsec);
-//Parameters
     ros::param::get("/qbo_head_tracker/pan/kp", kp);
     ros::param::get("/qbo_head_tracker/pan/kd", kd);
     ros::param::get("/qbo_head_tracker/pan/ki", ki);
 
-    double  panPID = controlPID(pan, iPan, dPan, kp, kd, ki);
+double  panPID = computePID(pan, previousPan, iPan, timePreviousTilt, kp, ki, kd);
 
 //compute absolute position and use moveHeadAbs
     moveHeadAbs(currentPan + panPID, currentTilt + tiltPID);
 //ROS_INFO("Moving head from: [x: %lf, y: %lf]", panPID, tiltPID);
 
-//update
-    timePreviousTilt = now;
-    previousTilt = currentTilt;
-    previousPan = currentPan;
+    timePreviousTilt = ros::Time::now();
 }
 
 //move eyelids to (left, right) absolute position
