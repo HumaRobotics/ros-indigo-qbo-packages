@@ -4,7 +4,7 @@
 #include "qbo_arduqbo/motor_state.h"
 #include "sensor_msgs/JointState.h"
 #include "geometry_msgs/Point.h"
-#include "sensor_msgs/RegionOfInterest.h"
+#include "geometry_msgs/PointStamped.h"
 
 //pointer to nodeHandle so the callback can access to it too
 ros::NodeHandle* n;
@@ -50,12 +50,13 @@ void initValues()
     panRadPerTicks = range*M_PI/(ticks*180);
 
 //PID parameters as ROS params
-    ros::param::set("/qbo_head_tracker/pan/kp", 0.35); //0.5;
+    ros::param::set("/qbo_head_tracker/pan/kp", 0.35);
     ros::param::set("/qbo_head_tracker/pan/kd", 0.08);
     ros::param::set("/qbo_head_tracker/pan/ki", 0.01);
     ros::param::set("/qbo_head_tracker/tilt/kp", 0.6);
     ros::param::set("/qbo_head_tracker/tilt/kd", 0.07);
     ros::param::set("/qbo_head_tracker/tilt/ki", 0.005);
+
 
     timePreviousTilt = ros::Time::now();
 }
@@ -98,6 +99,8 @@ void moveHeadAbs(double pan, double tilt)
     position.push_back(pan);
     position.push_back(tilt);
 
+//ROS_INFO("Moving head at: [x: %lf, y: %lf]", pan, tilt);
+
     mvmt_msg.position = position;
 
 //   ROS_INFO("move head to %lf, %lf", pan, tilt);
@@ -116,11 +119,11 @@ void moveHeadRel(double pan, double tilt)
 
 //Parameters
     double kp;
-    ros::param::get("/HR_tracker/tilt/kp", kp);
+    ros::param::get("/qbo_head_tracker/tilt/kp", kp);
     double kd;
-    ros::param::get("/HR_tracker/tilt/kd", kd);
+    ros::param::get("/qbo_head_tracker/tilt/kd", kd);
     double ki;
-    ros::param::get("/HR_tracker/tilt/ki", ki);
+    ros::param::get("/qbo_head_tracker/tilt/ki", ki);
 
     double  tiltPID = controlPID(tilt, iTilt, dTilt, kp, kd, ki);
 
@@ -131,14 +134,15 @@ void moveHeadRel(double pan, double tilt)
 //Derivated term
     double dPan = (pan - previousPan)/((now - timePreviousTilt).sec+0.001*(now - timePreviousTilt).nsec);
 //Parameters
-    ros::param::get("/HR_tracker/pan/kp", kp);
-    ros::param::get("/HR_tracker/pan/kd", kd);
-    ros::param::get("/HR_tracker/pan/ki", ki);
+    ros::param::get("/qbo_head_tracker/pan/kp", kp);
+    ros::param::get("/qbo_head_tracker/pan/kd", kd);
+    ros::param::get("/qbo_head_tracker/pan/ki", ki);
 
     double  panPID = controlPID(pan, iPan, dPan, kp, kd, ki);
 
 //move head
     moveHeadAbs(currentPan + panPID, currentTilt + tiltPID);
+ROS_INFO("Moving head from: [x: %lf, y: %lf]", panPID, tiltPID);
 
 //update
     timePreviousTilt = now;
@@ -205,16 +209,18 @@ x = position in width in the image. In range [-1 (left), +1 (right)]
 y = position in height in the image. In range [-1 (up), +1 (down)]
 distance : distance to object (unused if 0 or less)
 ***********/
-void trackerCallback(const sensor_msgs::RegionOfInterest::ConstPtr& msg)
+void trackerCallback(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
     // ROS_INFO("tracker callback for %s: [x: %lf, y: %lf]", msg->object_name.c_str(), msg->x, msg->y);
+if(msg->point.z > 0){
+ROS_INFO("Got image position: [x: %lf, y: %lf]", msg->point.x, msg->point.y);
+	double currentObjectPosX = msg->point.x;
+double currentObjectPosY = msg->point.y;
+double objectTargetX = 0.0;
+double objectTargetY = 0.0;
 
-	double currentObjectPosX = msg->x_offset;
-double currentObjectPosY = msg->y_offset;
-double objectTargetX = msg->width;
-double objectTargetY = msg->height;
-
-    moveHeadRel(currentObjectPosX-objectTargetX , objectTargetY - currentObjectPosY );
+    moveHeadRel(-currentObjectPosX+objectTargetX , -objectTargetY + currentObjectPosY );
+}
 
 }
 
@@ -250,8 +256,8 @@ ros::service::waitForService("qbo_arduqbo/test_service", -1);
     loop_rate.sleep();
     loop_rate.sleep();
     moveHeadAbs(0., 0.);*/
-    ROS_INFO("HR_qbo_move node ready");
-    ros::ServiceServer serviceReady = n->advertiseService("HR_qbo_move/isReady", isReadyService);
+    ROS_INFO("qbo_move_head node ready");
+    ros::ServiceServer serviceReady = n->advertiseService("qbo_move_head/isReady", isReadyService);
 
     ros::spin();
     return 0;

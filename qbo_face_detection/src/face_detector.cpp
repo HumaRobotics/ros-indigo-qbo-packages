@@ -375,10 +375,10 @@ float FaceDetector::headDistance(){
             head_distance = 5;
     }
     else{
-	ROS_INFO("distance to head before %f", head_distance);
+	//ROS_INFO("distance to head before %f", head_distance);
 	//ROS_INFO(head_distance);
         head_distance=calcDistanceToHead(detected_face_, kalman_filter_);
-	ROS_INFO("distance to head after %f", head_distance);
+	//ROS_INFO("distance to head after %f", head_distance);
     }
 	
     if(head_distances_.size()==0)
