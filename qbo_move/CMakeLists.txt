@@ -102,6 +102,9 @@ include_directories(
 add_executable(qbo_move_head src/qbo_move_head.cpp)
 target_link_libraries(qbo_move_head ${catkin_LIBRARIES})
 
+add_executable(qbo_move_base src/qbo_move_base.cpp)
+target_link_libraries(qbo_move_base ${catkin_LIBRARIES})
+
 ## Declare a cpp library
 # add_library(qbo_move
 #   src/${PROJECT_NAME}/qbo_move.cpp

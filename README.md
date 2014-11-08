@@ -68,3 +68,9 @@ Difference between previous qbo_face_tracking and new qbo_face_detection node:
 - Use geometry_msgs/PoseStamped instead of FacePosAndDist message
 - in message, x and y are values in the camera image, between -1 and 1
 - A distance of -1 means no face has been detected. Distance measurement may be bad, because of poblems with the camera projection matrix
+
+New qbo_move package:
+This package is divided in 3 nodes:
+- qbo_move_head to control the head servos (neck and eyelids). A special tracker topic allows you to follow an objet seen from the camera with the head (see qbo_track_face_head.launch)
+- qbo_move_base to control the base. TODO : a special mode allows to allign with the head, useful when tracking)
+- qbo_avoid_obstacles. TODO : can be used between qbo_move_base and qbo_arduqbo to prevent moves going to obstacles
