@@ -1,13 +1,13 @@
 ros-indigo-qbo-packages
 =======================
 
-Qbo_stack moved to indigo and modified for more standard use
+Qbo_stack moved to indigo and modified for more standard use.
 
 ###############
 # Disclaimer
 
- This code is given as-is, no reponsability will be taken in case of bug/damage caused to you robot
- I am working on a standard Qbo Pro Evo robot, adaptation may be needed if your robot is different
+ This code is given as-is, no reponsability will be taken in case of bug/damage caused to you robot.
+ I am working on a standard Qbo Pro Evo robot, adaptation may be needed if your robot is different.
 
 ##############
 
