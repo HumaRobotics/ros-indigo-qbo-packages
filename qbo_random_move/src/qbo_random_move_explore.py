@@ -26,13 +26,13 @@ def random_move():
 #in an infinite loop
     while not rospy.is_shutdown():
 
-#change direction with probability 1 on 10
+      #change direction with probability 1 out of 10
       if random.randint(0,10) == 0:
         random_linear = random.uniform(minLinear, maxLinear)
         random_angular = random.uniform(minAngular, maxAngular)        
         rospy.loginfo("Randomly moving at [%f , %f]", random_linear, random_angular)
 
-#publish Twist message to move the base
+      #publish Twist message to move the base
       message = Twist()
       message.linear.x=random_linear
       message.linear.y=0
@@ -42,7 +42,7 @@ def random_move():
       message.angular.z=random_angular
       pub.publish(message)
 
-#wait half a second
+      #wait half a second
       rospy.sleep(0.5)
 #end of infinite loop
 

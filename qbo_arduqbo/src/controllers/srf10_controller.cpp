@@ -29,6 +29,9 @@
 CDistanceSensor::CDistanceSensor(std::string name, uint8_t address, std::string topic, ros::NodeHandle& nh, std::string type, std::string frame_id) :
     name_(name), address_(address), nh_(nh), type_(type)
 {
+
+
+
     cloud_.points.resize(1);
     cloud_.channels.resize(0);
 
@@ -98,6 +101,9 @@ nh.getParam(paramName+"/address", address);
         nh.param(paramName+"/frame_id", frame_id, std::string(""));
         nh.param(paramName+"/topic", sensor_topic, topic+"/"+sensorName);
 
+if(!nh.hasParam(paramName+"/publish_if_obstacle"))
+	nh.setParam(paramName+"/publish_if_obstacle", false);
+
 
  if (type.compare("srf10")==0)
         {
@@ -130,6 +136,7 @@ CSrf10Controller::CSrf10Controller(std::string name, CQboduinoDriver *device_p, 
       {
         ROS_ASSERT((*it).second.getType() == XmlRpc::XmlRpcValue::TypeStruct);
         
+
 	createDistanceSensor("controllers/"+name+"/sensors/front/"+(*it).first,(*it).first, topic, nh);
 
        
@@ -200,8 +207,18 @@ void CSrf10Controller::timerCallback(const ros::TimerEvent& e)
             if (updatedDistances.count((*it).first)>0)
             {
                 ROS_DEBUG_STREAM("Obtained distance " << updatedDistances[(*it).first] << " for srf10 sensor " << (*it).second->getName() << " from the base control board");
-                if(updatedDistances[(*it).first]>0)
-                    (*it).second->publish((float)updatedDistances[(*it).first],now);
+
+//do we publish al lvalues or only when we see something ? (0.0 values means no obstacle)
+                bool publish_if_obstacle;
+
+                nh.getParam("controllers/"+getName()+"/sensors/front/"+(*it).second->getName()+"/publish_if_obstacle", publish_if_obstacle);
+                if( publish_if_obstacle){
+                    if( updatedDistances[(*it).first]>0)
+                       (*it).second->publish((float)updatedDistances[(*it).first],now);
+}
+                else{
+                     (*it).second->publish((float)updatedDistances[(*it).first],now);
+}
             }
             else
                 ROS_WARN_STREAM("Could not obtain distance of srf10 sensor " << (int)((*it).first) << " from base control board");

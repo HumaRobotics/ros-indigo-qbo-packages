@@ -51,8 +51,9 @@ Differences with previous qbo_arduqbo node:
 - Battery_status message is not used anymore. Battery level is published in /qbo_arduqbo/battery_level as a std_msgs/Float32 and robot status is published in /qbo_arduqbo/status as a std_msgs/Int8
 - controller names have been changed in the parameters
 - qboduino driver has been cleaned and commented in english
-- floor_controller was empty an dunused, it has been deleted
+- floor_controller was empty and unused, it has been deleted
 - Floor sensors gives a distance in meters and not centimeters
+- SRF sent data everytime they receive it, even if it is 0 (no obstacle seen). This behavior can be modified through publish_if_obstacle parameter
 - IMU has a parameter last_calibrated containing a time (or -1 if calibrating failed). The calibrated publisher has been removed.
 - IMU values computation has been modified (some errors in previous version ?)
 - NodeHandle nh has been added to controller_class
